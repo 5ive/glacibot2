@@ -1,38 +1,32 @@
-import sys, os, importlib
+""" Utility to dynamically load/reload modules during runtime """
 
-class Manager:
-    def __init__(self):
-        self.commands = {}
+import sys
+import os
+import importlib
+from env import GLOBAL
 
-    def Load(self, name):
-        return importlib.import_module(name)
+def load(name):
+    """ Load a new module in and return it """
+    return importlib.import_module(name)
 
-    def Refresh(self, module):
-        importlib.reload(module)
+def refresh(module):
+    """ Reload the specified module's code """
+    importlib.reload(module)
 
-    def Rescan(self):
-        # Right now this clobbers existing modules
-        # This would mess up any stateful commands
+def scan():
+    """ Scan for not-previously-loaded modules and load them """
 
-        for name in os.listdir('./commands/'):
-            if os.path.isdir('./commands/{0}'.format(name)):
-                try:
-                    command = self.Load('commands.{0}.main'.format(name))
+    for name in os.listdir('./commands/'):
+        # Make sure it's a directory, and we don't already have it loaded
+        if os.path.isdir('./commands/{0}'.format(name)) and name not in GLOBAL['commands']:
+            try:
+                print("Loaded new command: {0}".format(name))
+                command = load('commands.{0}.main'.format(name))
 
-                    if 'run' in dir(command):
-                        self.commands[name] = command
-                    else:
-                        print("Couldn't find run(...) in {0}. Skipping command.".format(name))
-                except:
-                    error, tb = sys.exec_info()[1:]
-
-                    print("'{0}' error in {1}, line {2}. Skipping command.".format(
-                        error,
-                        tb.tb_frame.f_code.co_filename,
-                        tb.tb_lineno
-                    ))
-
-        print("Loaded commands: {0}".format(",".join(self.commands.keys())))
-
-    def GetCommandList(self):
-        return self.commands.values()
+                if 'run' in dir(command):
+                    GLOBAL['commands'][name] = command
+                else:
+                    print("Couldn't find run(...) in {0}. Skipping command.".format(name))
+            except:
+                # Get the 'compile' error, skip this command
+                print("'{0}' error in {1}. Skipping command.".format(sys.exc_info()[1], name))

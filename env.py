@@ -1,5 +1,25 @@
-# Standard Utilities
-manager = None
-slack = None
+""" Stores global-scope variables """
 
-birth = 0
+# Standard Modules
+MODULES = {
+    'slack': None
+}
+
+# Standard Utilities
+UTILS = {
+    'manager': None,
+    'slack': None
+}
+
+# Statistics Tracking
+STATS = {
+    'birth': 0,
+    'connected_at': 0
+}
+
+# Global Storage
+GLOBAL = {
+    'commands': {},
+    'loop': None,
+    'socket': None
+}

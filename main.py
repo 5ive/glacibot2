@@ -1,16 +1,31 @@
-import asyncio, os, time
-import slack, manager, env, config
+""" Bootstrap the environment and handle the event loop. """
 
-env.birth = time.time()
+import asyncio
+import time
+import aiohttp
+import manager
+from env import MODULES, UTILS, STATS, GLOBAL
 
-env.manager = manager.Manager()
-env.slack = slack.Slack(config.BOT_TOKEN)
+STATS['birth'] = time.time()
 
-env.manager.Rescan()
+# Bootstrap the module manager
+UTILS['manager'] = manager.load('manager')
+del manager
 
-loop = asyncio.get_event_loop()
-loop.set_debug(True)
+# Load the slack class in via module manager
+MODULES['slack'] = UTILS['manager'].load('slack')
+UTILS['slack'] = MODULES['slack'].Slack()
 
-asyncio.ensure_future(env.slack.Connect(loop))
+# Load any custom commands that are present
+UTILS['manager'].scan()
 
-loop.run_forever()
+# Create the main event loop and socket
+GLOBAL['loop'] = asyncio.get_event_loop()
+GLOBAL['loop'].set_debug(True)
+GLOBAL['socket'] = aiohttp.ClientSession(loop=GLOBAL['loop'])
+
+# Start off by connecting to slack
+asyncio.ensure_future(UTILS['slack'].start())
+
+# Kick off the main event loop
+GLOBAL['loop'].run_forever()

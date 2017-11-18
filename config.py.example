@@ -1,1 +1,3 @@
+""" Stores secrets so they (almost) never need to be viewed """
+
 BOT_TOKEN = ""
