@@ -20,5 +20,6 @@ async def run(message):
         if pieces[1].lower() in ['hi', 'hello', 'heya', 'hihi']:
             print("Sending response back...")
             await UTILS['slack'].say(message['channel'], "{0}, <@{1}>!".format(pieces[1], message['user']))
+
     except Exception:
         return 3

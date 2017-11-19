@@ -1,3 +1,5 @@
+#!/user/bin/env python3
+
 """ Bootstrap the environment and handle the event loop. """
 
 import asyncio
