@@ -18,6 +18,10 @@ del manager
 MODULES['slack'] = UTILS['manager'].load('slack')
 UTILS['slack'] = MODULES['slack'].Slack()
 
+# Load the mysql class in via module manager
+MODULES['mysql'] = UTILS['manager'].load('mysql')
+UTILS['mysql'] = MODULES['mysql'].Database()
+
 # Load any custom commands that are present
 UTILS['manager'].scan()
 

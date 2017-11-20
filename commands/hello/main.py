@@ -1,25 +1,28 @@
-""" Simple command to showcase commands/responses """
+""" Defines Hello command object """
 
+import command
 from env import UTILS
 
-async def run(message):
-    """ Parses messages sent to it from slack.py """
+class Hello(command.Command):
+    """ Simple command to showcase command structure/responses """
 
-    # Make sure it's a message, and not a thread notification
-    if message['type'] != 'message' or 'subtype' in message:
-        return 1
+    def initialize(self):
+        pass
 
-    try:
+    def destroy(self):
+        pass
+
+    async def command(self, message):
+        # Make sure it's a message, and not a thread notification
+        if message['type'] != 'message' or 'subtype' in message:
+            return
+
         pieces = message['text'].split()
 
         # only respond if we were @mentioned
-        if pieces[0] != "<@{0}>".format(UTILS['slack'].user['id']):
-            return 2
+        if not pieces or pieces[0] != "<@{0}>".format(UTILS['slack'].user['id']):
+            return
 
         # if they said hello to us, respond in kind
         if pieces[1].lower() in ['hi', 'hello', 'heya', 'hihi']:
-            print("Sending response back...")
             await UTILS['slack'].say(message['channel'], "{0}, <@{1}>!".format(pieces[1], message['user']))
-
-    except Exception:
-        return 3

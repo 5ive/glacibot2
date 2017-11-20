@@ -5,8 +5,8 @@ import time
 import ctypes
 import asyncio
 import aiohttp
+import config
 from env import GLOBAL, STATS
-from config import BOT_TOKEN
 
 class Slack:
     """ framework to connect/reconnect, and talk to Slack WebAPI and RTM """
@@ -26,8 +26,6 @@ class Slack:
         self.heartbeat_pending = False
         self.state = Slack.State.INACTIVE
         self.reconnects = 0
-        # Statistics storage
-        self.latency = []
         # Identity storage
         self.team = {'name': None, 'id': None}
         self.user = {'name': None, 'id': None}
@@ -77,20 +75,23 @@ class Slack:
             # Internally handle ping/pong events
             if message['type'] == 'pong':
                 self.heartbeat_pending = False
-                self.latency.append(time.time() - float(message['sent']))
+
+                # Store the RTT into the latency history
+                STATS['latency'].append(time.time() - float(message['sent']))
+
                 print("Got heartbeat. (Latency: {0}s, Lifetime: {1}s)".format(
-                    round(self.latency[-1], 3),
+                    round(STATS['latency'][-1], 3),
                     round(time.time() - STATS['connected_at'], 3)
                 ))
 
                 # Track the last 10 pings for historical tracking
-                if len(self.latency) > 10:
-                    self.latency.pop(0)
+                if len(STATS['latency']) > 10:
+                    STATS['latency'].pop(0)
 
             else:
                 # Give each custom command the input in its .run(data) method
-                for command in GLOBAL['commands'].values():
-                    asyncio.ensure_future(command.run(message))
+                for current in GLOBAL['commands'].values():
+                    asyncio.ensure_future(current.command(message))
 
 
     async def stop(self):
@@ -116,13 +117,13 @@ class Slack:
                 print("Waiting {0} seconds before reconnecting (attempt {1})".format(delta, self.reconnects))
                 await asyncio.sleep(delta)
 
-                # Force refresh DNS, https://stackoverflow.com/questions/13606584/python-not-getting-ip-if-cable-connected-after-script-has-started
+                # Force refresh DNS, see https://stackoverflow.com/questions/13606584
                 try:
                     libc = ctypes.CDLL('libc.so.6')
                     res_init = getattr(libc, '__res_init')
                     res_init(None)
-                except:
-                    print("Error calling libc.__res_init")
+                except Exception as exception:
+                    print("Error calling libc.__res_init: {0}".format(exception))
 
         print("Exiting from slack")
         self.state = Slack.State.INACTIVE
@@ -140,13 +141,10 @@ class Slack:
             # Attempt to get a connection point from Slack web API
             print("Requesting RTM connection point")
             rtm = await self._api_call("rtm.start")
-
-            # Attempt to open up a websocket to the RTM connection point
-            print("Got RTM connect point: {0}".format(rtm['url']))
             self.socket = await GLOBAL['socket'].ws_connect(rtm['url'])
 
             # Spin up the async tasks to interact with Slack RTM
-            print("Starting up tasks")
+            print("Connected to RTM socket. Starting up tasks")
             task_heartbeat = asyncio.ensure_future(self._heartbeat(30))
             task_listen = asyncio.ensure_future(self._listen())
             task_killswitch = asyncio.ensure_future(self._killswitch(1))
@@ -228,7 +226,7 @@ class Slack:
     async def _api_call(self, target, data=None):
         # Add our bot token along with any payload
         form = aiohttp.FormData(data or {})
-        form.add_field('token', BOT_TOKEN)
+        form.add_field('token', config.SLACK['token'])
 
         # Loop until we can send the message (to account for rate limiting)
         while True:
